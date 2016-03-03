@@ -7,8 +7,9 @@
 
 using namespace GClasses;
 
-#define USE_AUTOFILTER
 #define NUM_COLUMNS_SPLIT	1
+#define EPOCH_SIZE		100000
+#define NUM_EPOCHS		10000
 
 int main(int argc, char** argv){
 	//Load the dataset into memory
@@ -30,12 +31,11 @@ int main(int argc, char** argv){
 
 	//Split our data into testing and training portions
 	GRand r(0);
-	GDataRowSplitter rs(*pRealInputs, *pRealOutputs, r, 3000);
+	GDataRowSplitter rs(*pRealInputs, *pRealOutputs, r, 250000);
 	const GMatrix& trainingFeatures	= rs.features1();
 	const GMatrix& trainingLabels	= rs.labels1();
 	const GMatrix& testingFeatures	= rs.features2();
 	const GMatrix& testingLabels	= rs.labels2();
-
 
 	//Make our network with 4 layers
 	GNeuralNet nn;
@@ -43,25 +43,34 @@ int main(int argc, char** argv){
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 20, new GActivationTanH()));
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 20, new GActivationTanH()));
 	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 20, new GActivationTanH()));
-	nn.setImprovementThresh(0.001);
-	nn.setWindowSize(1000);
 	
-	#ifdef USE_AUTOFILTER
-	//Use an autofilter to train our data
-	GAutoFilter af(&nn, false);
-	af.train(inputs, outputs);
-	double missed = af.sumSquaredError(inputs, outputs);
-	std::cout << "Misclassified " << missed << " out of " << outputs.rows() << "\n";
-	#else
+	//Change our learning rate
 	nn.setLearningRate(0.05);
-	nn.train(trainingFeatures, trainingLabels);
-
-	double sse	= nn.sumSquaredError(testingFeatures, testingLabels);
-	double mse	= sse / testingLabels.rows();
-	double rmse	= sqrt(mse);
-	std::cout << "RMSE = " << rmse << "\n";
-	#endif
 	
+	//Make a random iterator
+	GRandomIndexIterator ii(trainingFeatures.rows(), nn.rand());
+
+	std::cout << "@RELATION neural_net_accuracy\n";
+	std::cout << "@ATTRIBUTE epoch\n";
+	std::cout << "@ATTRIBUTE rmse\n";
+	std::cout << "@DATA\n";
+
+	for(int i = 0; i < NUM_EPOCHS; i++){
+		double sse	= nn.sumSquaredError(testingFeatures, testingLabels);
+		double mse	= sse / testingLabels.rows();
+		double rmse	= sqrt(mse);
+		
+		if(i % EPOCH_SIZE == 0){
+			std::cout << i << ", " << rmse << "\n";
+			std::cout.flush();
+		}
+
+		ii.reset();
+		size_t index;
+		while(ii.next(index))
+			nn.trainIncremental(trainingFeatures[index], trainingLabels[index]);
+	}
+
 	delete(pRealInputs);
 	delete(pRealOutputs);
 	return EXIT_SUCCESS;
