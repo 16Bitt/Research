@@ -1,0 +1,1 @@
+Credit for the machine learning library goes to Dr. Gashler for his waffles toolkit, and credit for the dataset goes to the KDD-CUP-99
