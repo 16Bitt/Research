@@ -8,8 +8,9 @@
 using namespace GClasses;
 
 #define NUM_COLUMNS_SPLIT	1
-#define EPOCH_SIZE		100000
+#define EPOCH_SIZE		1
 #define NUM_EPOCHS		10000
+#define NUM_NODES			50
 
 int main(int argc, char** argv){
 	//Load the dataset into memory
@@ -28,10 +29,31 @@ int main(int argc, char** argv){
 	GNominalToCat nc_inputs;
 	nc_inputs.train(inputs);
 	GMatrix* pRealInputs = nc_inputs.transformBatch(inputs);
+	
+	//Now we need to normalize our inputs and outputs
+	for(int i = 0; i < pRealInputs->cols(); i++){
+		double min = pRealInputs->columnMin(i);
+		double max = pRealInputs->columnMax(i);
 
+		if(min == max)
+			continue;
+
+		pRealInputs->normalizeColumn(i, min, max);
+	}
+
+	for(int i = 0; i < pRealOutputs->cols(); i++){
+		double min = pRealOutputs->columnMin(i);
+		double max = pRealOutputs->columnMax(i);
+		
+		if(min == max)
+			continue;
+
+		pRealOutputs->normalizeColumn(i, min, max);
+	}
+	
 	//Split our data into testing and training portions
 	GRand r(0);
-	GDataRowSplitter rs(*pRealInputs, *pRealOutputs, r, 250000);
+	GDataRowSplitter rs(*pRealInputs, *pRealOutputs, r, 1000);
 	const GMatrix& trainingFeatures	= rs.features1();
 	const GMatrix& trainingLabels	= rs.labels1();
 	const GMatrix& testingFeatures	= rs.features2();
@@ -39,19 +61,24 @@ int main(int argc, char** argv){
 
 	//Make our network with 4 layers
 	GNeuralNet nn;
-	nn.addLayer(new GLayerClassic(20, 20, new GActivationTanH()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 20, new GActivationTanH()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 20, new GActivationTanH()));
-	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, 20, new GActivationTanH()));
-	
+	nn.addLayer(new GLayerClassic(40, NUM_NODES, new GActivationTanH()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, NUM_NODES, new GActivationTanH()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, NUM_NODES, new GActivationTanH()));
+	nn.addLayer(new GLayerClassic(FLEXIBLE_SIZE, NUM_COLUMNS_SPLIT, new GActivationTanH()));
+
 	//Change our learning rate
 	nn.setLearningRate(0.05);
 	
+	//Start our learning
+	nn.beginIncrementalLearning(trainingFeatures, trainingLabels);
+
 	//Make a random iterator
 	GRandomIndexIterator ii(trainingFeatures.rows(), nn.rand());
 
 	std::cout << "@RELATION neural_net_accuracy\n";
 	std::cout << "@ATTRIBUTE epoch\n";
+	std::cout << "@ATTRIBUTE sse\n";
+	std::cout << "@ATTRIBUTE mse\n";
 	std::cout << "@ATTRIBUTE rmse\n";
 	std::cout << "@DATA\n";
 
@@ -61,7 +88,7 @@ int main(int argc, char** argv){
 		double rmse	= sqrt(mse);
 		
 		if(i % EPOCH_SIZE == 0){
-			std::cout << i << ", " << rmse << "\n";
+			std::cout << i << ", " << sse << ", " << mse << ", " << rmse << "\n";
 			std::cout.flush();
 		}
 

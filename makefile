@@ -8,17 +8,17 @@ USER	= abbittin
 SERVER	= razor.uark.edu
 
 all: $(SOURCES) auth.arff
-	g++ $(CPPFLAGS) $(SOURCES) $(WAFFLES)/lib/libGClasses.a -o $(TARGET)
+	g++ $(CPPFLAGS) $(SOURCES) $(WAFFLES)/lib/libGClassesDbg.a -o $(TARGET)
 
 run: all
-	./$(TARGET)
+	./$(TARGET) > log.arff
 
 auth.arff:
 	waffles_transform import kdd.csv > auth.arff
 
 clean:
 	-rm $(TARGET) $(SOURCES)
-	rm auth.arff
+	-rm auth.arff log.arff
 
 upload:
 	scp auth.arff $(USER)@$(SERVER):/scratch/$(USER)/
