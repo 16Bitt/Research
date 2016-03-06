@@ -5,14 +5,35 @@
 #include <GClasses/GRand.h>
 #include <GClasses/GTransform.h>
 
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/normal_distribution.hpp>
+#include <boost/random/variate_generator.hpp>
+
 using namespace GClasses;
 
 #define NUM_COLUMNS_SPLIT	1
 #define EPOCH_SIZE		1
 #define NUM_EPOCHS		10000
-#define NUM_NODES			50
+#define NUM_NODES		10
+
+double rand_sse(const GMatrix& testingLabels, boost::variate_generator<boost::random::mt19937, boost::random::normal_distribution<double>> generator){
+	const int rows = testingLabels.rows();
+	const int cols = testingLabels.cols();
+	GMatrix fakedata(rows, cols);
+	
+	for(int i = 0; i < rows; i++)
+		for(int j = 0; j < cols; j++)
+			fakedata[i][j] = generator();
+
+	return testingLabels.sumSquaredDifference(fakedata);
+}
 
 int main(int argc, char** argv){
+	//Make a boost rng
+	boost::random::mt19937 rng;
+	boost::random::normal_distribution<double> dist(0, 1);
+	boost::variate_generator<boost::random::mt19937, boost::random::normal_distribution<double>> generator(rng, dist);
+
 	//Load the dataset into memory
 	GMatrix data;
 	data.loadArff("auth.arff");
@@ -76,19 +97,20 @@ int main(int argc, char** argv){
 	GRandomIndexIterator ii(trainingFeatures.rows(), nn.rand());
 
 	std::cout << "@RELATION neural_net_accuracy\n";
-	std::cout << "@ATTRIBUTE epoch\n";
-	std::cout << "@ATTRIBUTE sse\n";
-	std::cout << "@ATTRIBUTE mse\n";
-	std::cout << "@ATTRIBUTE rmse\n";
+	std::cout << "@ATTRIBUTE epoch real\n";
+	std::cout << "@ATTRIBUTE net_rmse real\n";
+	std::cout << "@ATTRIBUTE rand_rmse real\n";
 	std::cout << "@DATA\n";
+	std::cout.flush();
 
 	for(int i = 0; i < NUM_EPOCHS; i++){
 		double sse	= nn.sumSquaredError(testingFeatures, testingLabels);
 		double mse	= sse / testingLabels.rows();
 		double rmse	= sqrt(mse);
-		
+
 		if(i % EPOCH_SIZE == 0){
-			std::cout << i << ", " << sse << ", " << mse << ", " << rmse << "\n";
+			double rand_rmse = sqrt(rand_sse(testingLabels, generator) / testingLabels.rows());
+			std::cout << i << ", " << rmse << ", " << rand_rmse << std::endl;
 			std::cout.flush();
 		}
 
