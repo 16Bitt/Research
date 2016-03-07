@@ -16,7 +16,7 @@ using namespace GClasses;
 #define NUM_EPOCHS		10000
 #define NUM_NODES		10
 
-double rand_sse(const GMatrix& testingLabels, boost::variate_generator<boost::random::mt19937, boost::random::normal_distribution<double>> generator){
+double rand_sse(const GMatrix& testingLabels, boost::variate_generator<boost::random::mt19937, boost::random::normal_distribution<double>>& generator){
 	const int rows = testingLabels.rows();
 	const int cols = testingLabels.cols();
 	GMatrix fakedata(rows, cols);
