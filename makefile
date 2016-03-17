@@ -26,5 +26,5 @@ upload:
 	scp $(TARGET) $(USER)@$(SERVER):/scratch/$(USER)/
 
 view: all
-	waffles_plot scatter log.arff -range 0 -1 100 2 red 0 2 blue 0 1 > out.svg
+	waffles_plot scatter log.arff -range 0 0 100 2 red 0 2 blue 0 1 > out.svg
 	$(BROWSER) out.svg

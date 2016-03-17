@@ -14,7 +14,7 @@ using namespace GClasses;
 #define NUM_COLUMNS_SPLIT	1
 #define EPOCH_SIZE		1
 #define NUM_EPOCHS		10000
-#define NUM_NODES		10
+#define NUM_NODES		8
 
 double rand_sse(const GMatrix& testingLabels, boost::variate_generator<boost::random::mt19937, boost::random::normal_distribution<double>>& generator){
 	const int rows = testingLabels.rows();
@@ -74,7 +74,7 @@ int main(int argc, char** argv){
 	
 	//Split our data into testing and training portions
 	GRand r(0);
-	GDataRowSplitter rs(*pRealInputs, *pRealOutputs, r, 1000);
+	GDataRowSplitter rs(*pRealInputs, *pRealOutputs, r, 3000);
 	const GMatrix& trainingFeatures	= rs.features1();
 	const GMatrix& trainingLabels	= rs.labels1();
 	const GMatrix& testingFeatures	= rs.features2();
@@ -90,7 +90,7 @@ int main(int argc, char** argv){
 	//Change our learning rate
 	nn.setLearningRate(0.05);
 	
-	//Start our learning
+	//Initialize our learning
 	nn.beginIncrementalLearning(trainingFeatures, trainingLabels);
 
 	//Make a random iterator
@@ -102,25 +102,30 @@ int main(int argc, char** argv){
 	std::cout << "@ATTRIBUTE rand_rmse real\n";
 	std::cout << "@DATA\n";
 	std::cout.flush();
-
+	
+	//Train for a set number of epochs
 	for(int i = 0; i < NUM_EPOCHS; i++){
+		//Calculate our error for the start of this iteration
 		double sse	= nn.sumSquaredError(testingFeatures, testingLabels);
 		double mse	= sse / testingLabels.rows();
 		double rmse	= sqrt(mse);
-
+		
+		//Output the error at given increments
 		if(i % EPOCH_SIZE == 0){
 			double rand_rmse = sqrt(rand_sse(testingLabels, generator) / testingLabels.rows());
 			std::cout << i << ", " << rmse << ", " << rand_rmse << std::endl;
 			std::cout.flush();
 		}
-
+		
+		//Train on our training data randomly
 		ii.reset();
 		size_t index;
 		while(ii.next(index))
 			nn.trainIncremental(trainingFeatures[index], trainingLabels[index]);
 	}
-
-	delete(pRealInputs);
-	delete(pRealOutputs);
+	
+	//Clean up
+	delete pRealInputs;
+	delete pRealOutputs;
 	return EXIT_SUCCESS;
 }
